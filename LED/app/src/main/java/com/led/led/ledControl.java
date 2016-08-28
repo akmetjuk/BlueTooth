@@ -2,6 +2,7 @@ package com.led.led;
 
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
@@ -9,7 +10,6 @@ import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.view.View;
 import android.widget.Button;
-import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.app.ProgressDialog;
@@ -24,8 +24,6 @@ import java.util.UUID;
 public class ledControl extends ActionBarActivity {
 
     Button btnOn, btnOff, btnDis;
-    SeekBar brightness;
-    TextView lumn;
     String address = null;
     private ProgressDialog progress;
     BluetoothAdapter myBluetooth = null;
@@ -33,7 +31,7 @@ public class ledControl extends ActionBarActivity {
     private boolean isBtConnected = false;
     //SPP UUID. Look for it
     static final UUID myUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-
+    public static final String LOG_TAG = "ledControl";
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -49,8 +47,6 @@ public class ledControl extends ActionBarActivity {
         btnOn = (Button)findViewById(R.id.button2);
         btnOff = (Button)findViewById(R.id.button3);
         btnDis = (Button)findViewById(R.id.button4);
-        brightness = (SeekBar)findViewById(R.id.seekBar);
-        lumn = (TextView)findViewById(R.id.lumn);
 
         new ConnectBT().execute(); //Call the class to connect
 
@@ -60,6 +56,7 @@ public class ledControl extends ActionBarActivity {
             @Override
             public void onClick(View v)
             {
+                Log.d(LOG_TAG, "[btnOn] start " ) ;
                 turnOnLed();      //method to turn on
             }
         });
@@ -68,6 +65,7 @@ public class ledControl extends ActionBarActivity {
             @Override
             public void onClick(View v)
             {
+                Log.d(LOG_TAG, "[btnOff] start " ) ;
                 turnOffLed();   //method to turn off
             }
         });
@@ -77,10 +75,11 @@ public class ledControl extends ActionBarActivity {
             @Override
             public void onClick(View v)
             {
+                Log.d(LOG_TAG, "[btnDis] start " ) ;
                 Disconnect(); //close connection
             }
         });
-
+/*
         brightness.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -108,10 +107,12 @@ public class ledControl extends ActionBarActivity {
 
             }
         });
+        */
     }
 
     private void Disconnect()
     {
+        Log.d(LOG_TAG, "[Disconnect] start " ) ;
         if (btSocket!=null) //If the btSocket is busy
         {
             try
@@ -119,7 +120,10 @@ public class ledControl extends ActionBarActivity {
                 btSocket.close(); //close connection
             }
             catch (IOException e)
-            { msg("Error");}
+            {
+                msg("Error");
+                Log.e(LOG_TAG, "[Disconnect] IOException "  + e.getMessage());
+            }
         }
         finish(); //return to the first layout
 
@@ -127,6 +131,7 @@ public class ledControl extends ActionBarActivity {
 
     private void turnOffLed()
     {
+        Log.d(LOG_TAG, "[turnOffLed] start " ) ;
         if (btSocket!=null)
         {
             try
@@ -136,25 +141,46 @@ public class ledControl extends ActionBarActivity {
             catch (IOException e)
             {
                 msg("Error");
+                Log.e(LOG_TAG, "[turnOffLed] IOException "  + e.getMessage());
             }
         }
     }
 
     private void turnOnLed()
     {
+        Log.d(LOG_TAG, "[turnOnLed] start " ) ;
         if (btSocket!=null)
         {
             try
             {
                 btSocket.getOutputStream().write("TO".toString().getBytes());
+
             }
             catch (IOException e)
             {
                 msg("Error");
+                Log.e(LOG_TAG, "[turnOnLed] IOException "  + e.getMessage());
             }
         }
     }
 
+    private void sendNullCommand()
+    {
+        Log.d(LOG_TAG, "[sendNullCommand] start " ) ;
+        if (btSocket!=null)
+        {
+            try
+            {
+                btSocket.getOutputStream().write("CL".toString().getBytes());
+
+            }
+            catch (IOException e)
+            {
+                msg("Error");
+                Log.e(LOG_TAG, "[sendNullCommand] IOException "  + e.getMessage());
+            }
+        }
+    }
     // fast way to call Toast
     private void msg(String s)
     {
@@ -183,6 +209,11 @@ public class ledControl extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    public void onClickNullCommand(View view) {
+        Log.d(LOG_TAG, "[onClickNullCommand] start " ) ;
+        sendNullCommand();
+    }
+
     private class ConnectBT extends AsyncTask<Void, Void, Void>  // UI thread
     {
         private boolean ConnectSuccess = true; //if it's here, it's almost connected
@@ -196,6 +227,7 @@ public class ledControl extends ActionBarActivity {
         @Override
         protected Void doInBackground(Void... devices) //while the progress dialog is shown, the connection is done in background
         {
+            Log.d(LOG_TAG, "[doInBackground] start " ) ;
             try
             {
                 if (btSocket == null || !isBtConnected)
@@ -203,12 +235,14 @@ public class ledControl extends ActionBarActivity {
                  myBluetooth = BluetoothAdapter.getDefaultAdapter();//get the mobile bluetooth device
                  BluetoothDevice dispositivo = myBluetooth.getRemoteDevice(address);//connects to the device's address and checks if it's available
                  btSocket = dispositivo.createInsecureRfcommSocketToServiceRecord(myUUID);//create a RFCOMM (SPP) connection
+              //      btSocket = dispositivo.createRfcommSocketToServiceRecord(myUUID);//create a RFCOMM (SPP) connection
                  BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
                  btSocket.connect();//start connection
                 }
             }
             catch (IOException e)
             {
+                Log.e(LOG_TAG, "[doInBackground] IOException " + e.getMessage() ) ;
                 ConnectSuccess = false;//if the try failed, you can check the exception here
             }
             return null;

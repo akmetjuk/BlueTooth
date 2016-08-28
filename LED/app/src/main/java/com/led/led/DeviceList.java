@@ -1,8 +1,12 @@
 package com.led.led;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -28,6 +32,28 @@ public class DeviceList extends ActionBarActivity
     private BluetoothAdapter myBluetooth = null;
     private Set<BluetoothDevice> pairedDevices;
     public static String EXTRA_ADDRESS = "device_address";
+    public static final String LOG_TAG = "DeviceList";
+
+    public ArrayList<String> mArrayAdapter = new ArrayList<>();
+    public ArrayAdapter mBTFoundArrayAdapter;
+
+    // Create a BroadcastReceiver for ACTION_FOUND
+    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+            Log.d(LOG_TAG, "[onReceive] start " );
+            String action = intent.getAction();
+            // When discovery finds a device
+            if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+                // Get the BluetoothDevice object from the Intent
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                // Add the name and address to an array adapter to show in a ListView
+                Log.d(LOG_TAG, "found: " + device.getName() + "\n" + device.getAddress()) ;
+                mArrayAdapter.add(device.getName() + "\n" + device.getAddress());
+                mBTFoundArrayAdapter.notifyDataSetChanged();
+            }
+        }
+    };
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -39,8 +65,16 @@ public class DeviceList extends ActionBarActivity
         btnPaired = (Button)findViewById(R.id.button);
         devicelist = (ListView)findViewById(R.id.listView);
 
+
+        mBTFoundArrayAdapter = new  ArrayAdapter(this,android.R.layout.simple_list_item_1, mArrayAdapter);
+        devicelist.setAdapter(mBTFoundArrayAdapter);
+        devicelist.setOnItemClickListener(myListClickListener); //Method called when the device from the list is clicked
+
+
         //if the device has bluetooth
         myBluetooth = BluetoothAdapter.getDefaultAdapter();
+
+
 
         if(myBluetooth == null)
         {
@@ -61,9 +95,31 @@ public class DeviceList extends ActionBarActivity
             @Override
             public void onClick(View v)
             {
-                pairedDevicesList();
+                Log.d(LOG_TAG, "[btnPaired] start") ;
+                // pairedDevicesList();
+                try {
+                    // Register the BroadcastReceiver
+                    IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+                    registerReceiver(mReceiver, filter); // Don't forget to unregister during onDestroy
+                    myBluetooth.startDiscovery();
+                } catch ( Exception ex)
+                {
+                    Log.e(LOG_TAG, "[btnPaired] error " + ex.getMessage()) ;
+
+                }
             }
         });
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        try {
+        unregisterReceiver(mReceiver);
+        } catch (Exception ex) {
+            Log.e( LOG_TAG, "error onDestroy: " + ex.getMessage() );
+        }
 
     }
 
@@ -94,9 +150,14 @@ public class DeviceList extends ActionBarActivity
     {
         public void onItemClick (AdapterView<?> av, View v, int arg2, long arg3)
         {
+            Log.d(LOG_TAG, "[myListClickListener] start") ;
             // Get the device MAC address, the last 17 chars in the View
             String info = ((TextView) v).getText().toString();
             String address = info.substring(info.length() - 17);
+
+            Log.d( LOG_TAG, "selected item "  + info );
+
+
 
             // Make an intent to start next activity.
             Intent i = new Intent(DeviceList.this, ledControl.class);
@@ -104,6 +165,7 @@ public class DeviceList extends ActionBarActivity
             //Change the activity.
             i.putExtra(EXTRA_ADDRESS, address); //this will be received at ledControl (class) Activity
             startActivity(i);
+
         }
     };
 
